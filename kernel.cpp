@@ -37,7 +37,7 @@ void sort(std::vector<int32_t> &array, const int32_t min, const int32_t max) {
   return;
 }
 
-
+extern "C"
 void vc_sort(std::vector<int32_t> &array) {
   const int32_t max = _MAX_VALUE_RANGE;
   const int32_t min = _MIN_VALUE_RANGE;
