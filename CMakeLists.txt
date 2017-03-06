@@ -4,6 +4,7 @@ set ( EXE_NAME "run_countsort" )
 
 set ( SRC_CNTSRT ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
                  ${CMAKE_CURRENT_SOURCE_DIR}/kernel.cpp
+                 ${CMAKE_CURRENT_SOURCE_DIR}/TimeMonitor.cpp
                  ${CMAKE_CURRENT_SOURCE_DIR}/utils.cpp
                 )
 
