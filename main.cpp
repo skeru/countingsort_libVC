@@ -15,8 +15,6 @@
 
 typedef void (*kernel_t)(std::vector<int32_t> &array);
 
-// const size_t data_size = 10;
-const size_t data_size = 50*1000*1000;
 uint32_t seed = 666;
 const size_t MAX_ITERATIONS = 100;
 
@@ -29,11 +27,17 @@ int main(int argc, char const *argv[]) {
   CPU_SET(0, &mask);
   sched_setaffinity(0, sizeof(mask), &mask);
 
-  std::vector<int32_t> min = {-256, -512, -1024,   0,    0,    0};
-  std::vector<int32_t> max = { 256,  512,  1024, 541, 3571, 7919};
+  const std::vector<size_t> data_size = {
+                                        10*1000*1000,
+                                       100*1000*1000,
+                                      1000*1000*1000};
+  const std::vector<int32_t> min = {-1024,   0,    0};
+  const std::vector<int32_t> max = { 1024, 541, 7919};
 
-  for (size_t i = 0; i < min.size(); i++) {
-    run_test(data_size, min[i], max[i], MAX_ITERATIONS);
+  for (const size_t s : data_size) {
+    for (size_t i = 0; i < min.size(); i++) {
+      run_test(s, min[i], max[i], MAX_ITERATIONS);
+    }
   }
 
   return 0;
@@ -83,8 +87,8 @@ void run_test(size_t data_size, int32_t min, int32_t max, size_t iterations) {
     time_monitor2.stop();
   }
 
-  std::cout << "[ " << min << ", " << max << " )\t Avg Time taken old " << time_monitor1.getAvg() << " ms" << std::endl;
-  std::cout << "[ " << min << ", " << max << " )\t Avg Time taken vc  " << time_monitor2.getAvg() << " ms" << std::endl;
-  std::cout << "[ " << min << ", " << max << " )\t Avg Time taken ovh " << time_monitor_ovh.getAvg() << " ms" << std::endl;
+  std::cout << data_size << "\t[ " << min << ", " << max << " )\t Avg Time taken old " << time_monitor1.getAvg() << " ms" << std::endl;
+  std::cout << data_size << "\t[ " << min << ", " << max << " )\t Avg Time taken vc  " << time_monitor2.getAvg() << " ms" << std::endl;
+  std::cout << data_size << "\t[ " << min << ", " << max << " )\t Avg Time taken ovh " << time_monitor_ovh.getAvg() << " ms" << std::endl;
   return;
 }
