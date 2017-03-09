@@ -16,9 +16,9 @@
 typedef void (*kernel_t)(std::vector<int32_t> &array);
 
 // const size_t data_size = 10;
-const size_t data_size = 1000000;
+const size_t data_size = 50*1000*1000;
 uint32_t seed = 666;
-const size_t MAX_ITERATIONS = 1000;
+const size_t MAX_ITERATIONS = 100;
 
 void run_test(size_t data_size, int32_t min, int32_t max, size_t iterations);
 
@@ -29,8 +29,8 @@ int main(int argc, char const *argv[]) {
   CPU_SET(0, &mask);
   sched_setaffinity(0, sizeof(mask), &mask);
 
-  std::vector<int32_t> min = {-256, -512, -1024};
-  std::vector<int32_t> max = {256, 512, 1024};
+  std::vector<int32_t> min = {-256, -512, -1024,   0,    0,    0};
+  std::vector<int32_t> max = { 256,  512,  1024, 541, 3571, 7919};
 
   for (size_t i = 0; i < min.size(); i++) {
     run_test(data_size, min[i], max[i], MAX_ITERATIONS);
