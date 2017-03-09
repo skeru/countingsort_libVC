@@ -44,6 +44,7 @@ void run_test(size_t data_size, int32_t min, int32_t max, size_t iterations) {
 
   TimeMonitor time_monitor1;
   TimeMonitor time_monitor2;
+  static TimeMonitor time_monitor_ovh;
 
   std::vector<int32_t> v(data_size);
 
@@ -54,6 +55,7 @@ void run_test(size_t data_size, int32_t min, int32_t max, size_t iterations) {
     time_monitor1.stop();
   }
 
+  time_monitor_ovh.start();
   vc::Version::Builder builder;
   const std::string kernel_dir = PATH_TO_KERNEL;
   builder._fileName_src = kernel_dir + "kernel.cpp";
@@ -72,6 +74,7 @@ void run_test(size_t data_size, int32_t min, int32_t max, size_t iterations) {
     return;
   }
   kernel_t f = (kernel_t) version->getSymbol();
+  time_monitor_ovh.stop();
 
   for (size_t i = 0; i < iterations; i++) {
     initialize(v, min, max, seed++);
@@ -80,7 +83,8 @@ void run_test(size_t data_size, int32_t min, int32_t max, size_t iterations) {
     time_monitor2.stop();
   }
 
-  std::cout << "[ " << min << ", " << max << " ]\t Time taken 1 (avg) " << time_monitor1.getAvg() << " ms" << std::endl;
-  std::cout << "[ " << min << ", " << max << " ]\t Time taken 2 (avg) " << time_monitor2.getAvg() << " ms" << std::endl;
+  std::cout << "[ " << min << ", " << max << " )\t Avg Time taken old " << time_monitor1.getAvg() << " ms" << std::endl;
+  std::cout << "[ " << min << ", " << max << " )\t Avg Time taken vc  " << time_monitor2.getAvg() << " ms" << std::endl;
+  std::cout << "[ " << min << ", " << max << " )\t Avg Time taken ovh " << time_monitor_ovh.getAvg() << " ms" << std::endl;
   return;
 }
