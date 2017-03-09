@@ -5,6 +5,8 @@
 #include "versioningCompiler/Version.hpp"
 #include "versioningCompiler/CompilerImpl/SystemCompiler.hpp"
 
+#include <sched.h>
+
 #ifndef _PATH_TO_KERNEL
 #define PATH_TO_KERNEL "../"
 #else
@@ -22,6 +24,10 @@ void run_test(size_t data_size, int32_t min, int32_t max, size_t iterations);
 
 int main(int argc, char const *argv[]) {
 
+  cpu_set_t mask;
+  CPU_ZERO(&mask);
+  CPU_SET(0, &mask);
+  sched_setaffinity(0, sizeof(mask), &mask);
 
   std::vector<int32_t> min = {-256, -512, -1024};
   std::vector<int32_t> max = {256, 512, 1024};
