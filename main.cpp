@@ -32,8 +32,8 @@ int main(int argc, char const *argv[]) {
                                        100*1000*1000,
                                       1000*1000*1000,
                                         };
-  const std::vector<int32_t> min = {-1024,   0,    0};
-  const std::vector<int32_t> max = { 1024, 541, 7919};
+  const std::vector<int32_t> min = {   0, -1024,   0,    0};
+  const std::vector<int32_t> max = {1024,  1024, 541, 7919};
 
   vc::vc_utils_init();
 
