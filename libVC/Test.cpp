@@ -196,26 +196,57 @@ int main(int argc, char const *argv[])
   ok = v4->compile();
   if (!ok) {
     if (v4->hasGeneratedBin()) {
-      std::cout << "v4 has generated binary "<< v4->getFileName_bin() << std::endl;
+      std::cerr << "v4 has generated binary "<< v4->getFileName_bin() << std::endl;
     }
     if (v4->hasLoadedSymbol()) {
-      std::cout << "v4 has loaded symbol" << std::endl;
+      std::cerr << "v4 has loaded symbol" << std::endl;
     }
-    std::cout << "Error: compile v4 has failed" << std::endl;
+    std::cerr << "Error: compile v4 has failed" << std::endl;
     return -1;
   }
   std::cout << "Notify: v4 compiled." << std::endl;
+
+  std::shared_ptr<vc::Version> v5 =
+    vc::Version::Builder::createFromSO(v4->getFileName_bin(),
+                                       TEST_FUNCTION,
+                                       gcc,
+                                       false,
+                                       "version created from shared object");
+  if (! v5->compile()) {
+    if (v5->hasGeneratedBin()) {
+      std::cerr << "v5 has binary " << v5->getFileName_bin() << std::endl;
+    }
+    if (v5->hasLoadedSymbol()) {
+      std::cerr << "v5 has loaded symbol" << std::endl;
+    }
+    return -1;
+  }
+  std::cout << "Notify: v5 loaded." << std::endl;
 
   std::vector<signature_t> f;
   f.push_back((signature_t)v->getSymbol());
   f.push_back((signature_t)v2->getSymbol());
   f.push_back((signature_t)v3->getSymbol());
   f.push_back((signature_t)v4->getSymbol());
+  f.push_back((signature_t)v5->getSymbol());
   if (f[0]) {
     f[0](42);
     f[1](24);
     f[2](5);
     f[3](6);
+    f[4](7);
+  }
+  v->fold();
+  v2->fold();
+  v3->fold();
+  v4->fold();
+  v5->fold();
+  v3->reload();
+  signature_t reloaded = (signature_t)v3->getSymbol();
+  if (reloaded) {
+    reloaded(15);
+  } else {
+    std::cerr << "Error in folding and reloading v3" << std::endl;
   }
   return 0;
 }

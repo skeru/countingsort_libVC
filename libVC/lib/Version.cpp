@@ -34,7 +34,8 @@ Version::Version()
   fileName_src = "";
   fileName_IR = "";
   fileName_bin = "";
-  handle = nullptr;
+  symbol = nullptr;
+  lib_handle = nullptr;
   uuid_t uuid;
   char tmp[128];
   uuid_generate(uuid);
@@ -47,6 +48,9 @@ Version::Version()
 // ----------------------------------------------------------------------------
 Version::~Version()
 {
+  if (lib_handle) {
+    compiler->releaseSymbol(&lib_handle, &symbol);
+  }
   if (autoremoveFilesEnable) {
     removeFile(fileName_bin);
     removeFile(fileName_IR_opt);
@@ -60,6 +64,14 @@ Version::~Version()
 std::string Version::getID() const
 {
   return id;
+}
+
+// ----------------------------------------------------------------------------
+// --------------------------------- get Tag ----------------------------------
+// ----------------------------------------------------------------------------
+std::string Version::getTag() const
+{
+  return tag;
 }
 
 // ----------------------------------------------------------------------------
@@ -91,7 +103,42 @@ bool Version::hasGeneratedBin() const
 // ----------------------------------------------------------------------------
 bool Version::hasLoadedSymbol() const
 {
-  return (handle != nullptr);
+  return (getSymbol() != nullptr);
+}
+
+// ----------------------------------------------------------------------------
+// -------------------------- load function pointer ---------------------------
+// ----------------------------------------------------------------------------
+void Version::loadSymbol()
+{
+  if (!symbol && hasGeneratedBin()) {
+    symbol = compiler->loadSymbol(fileName_bin, functionName, &lib_handle);
+  }
+  return;
+}
+
+// ----------------------------------------------------------------------------
+// ----------------------------------- fold -----------------------------------
+// ----------------------------------------------------------------------------
+void Version::fold()
+{
+  if (lib_handle) {
+    compiler->releaseSymbol(&lib_handle, &symbol);
+  }
+  return;
+}
+
+// ----------------------------------------------------------------------------
+// ---------------------------------- reload ----------------------------------
+// ----------------------------------------------------------------------------
+void *Version::reload()
+{
+  if (lib_handle) {
+    fold();
+  }
+  symbol = nullptr;
+  loadSymbol();
+  return getSymbol();
 }
 
 // ----------------------------------------------------------------------------
@@ -99,7 +146,7 @@ bool Version::hasLoadedSymbol() const
 // ----------------------------------------------------------------------------
 void *Version::getSymbol() const
 {
-  return handle;
+  return symbol;
 }
 
 // ----------------------------------------------------------------------------
@@ -141,9 +188,7 @@ bool Version::compile()
     }
     fileName_bin = compiler->generateBin(src, functionName, id, optionList);
   }
-  if (hasGeneratedBin()) {
-    handle = compiler->loadSymbol(fileName_bin, functionName);
-  }
+  loadSymbol();
   return hasLoadedSymbol();
 }
 
@@ -264,11 +309,24 @@ Version::Builder::Builder(const std::shared_ptr<Version> v)
   : Builder(v.get()) { }
 
 // ----------------------------------------------------------------------------
+// ------------- constructor populating only mandatory parameters -------------
+// ----------------------------------------------------------------------------
+Version::Builder::Builder(const std::string &fileName,
+                          const std::string &functionName,
+                          const std::shared_ptr<Compiler> &compiler)
+{
+  _fileName_src = fileName;
+  _functionName = functionName,
+  _compiler = compiler;
+}
+
+// ----------------------------------------------------------------------------
 // ---------------------- Version object finalization -------------------------
 // ----------------------------------------------------------------------------
 std::shared_ptr<Version> Version::Builder::build()
 {
   _version_ptr = std::shared_ptr<Version>(new Version());
+  _version_ptr->tag = _tag;
   _version_ptr->functionName = _functionName;
   _version_ptr->fileName_src = _fileName_src;
   _version_ptr->fileName_IR = _fileName_IR;
@@ -293,6 +351,7 @@ std::shared_ptr<Version> Version::Builder::build()
 // ----------------------------------------------------------------------------
 void Version::Builder::reset()
 {
+  _tag = "";
   _compiler = nullptr;
   _functionName = "";
   _fileName_src = "";
@@ -371,6 +430,26 @@ void Version::Builder::addFunctionFlag(const std::string &flag)
     _flagDefineList.push_front(tmp);
   }
   return;
+}
+
+// ----------------------------------------------------------------------------
+// --------------- create version from shared object file name ----------------
+// ----------------------------------------------------------------------------
+std::shared_ptr<Version>
+Version::Builder::createFromSO(const std::string &sharedObject,
+                               const std::string &functionName,
+                               const std::shared_ptr<Compiler> &compiler,
+                               bool autoremoveFilesEnable,
+                               const std::string &tag)
+{
+  std::shared_ptr<Version> v = std::shared_ptr<Version>(new Version());
+  v->fileName_bin = sharedObject;
+  v->autoremoveFilesEnable = autoremoveFilesEnable;
+  v->functionName = functionName;
+  v->compiler = compiler;
+  v->tag = tag;
+  v->compile();
+  return v;
 }
 
 // ----------------------------------------------------------------------------

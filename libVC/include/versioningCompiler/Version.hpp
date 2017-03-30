@@ -55,6 +55,9 @@ class Version
   /** \brief String representation of the Version unique identifier. */
   std::string getID() const;
 
+  /** \brief User defined string description of the Version. */
+  std::string getTag() const;
+
   /** \brief Return true if an IR representation of this Version is available.
    * False otherwise.
    */
@@ -78,8 +81,26 @@ class Version
 
   /** \brief Return the symbol, if was correctly loaded.
    * nullptr otherwise.
+   *
+   * Please note that this symbol will stay valid only as long as the Version
+   * object is still alive.
+   * Closing the associated binary shared object will invalide this pointer.
    */
   void *getSymbol() const;
+
+  /** \brief Closes the shared object to save memory resources.
+   *
+   * After folding a Version it is not possible to access its symbol before
+   * reloading it.
+   */
+  void fold();
+
+  /** \brief Reloads a shared object after a fold. If the Version is not
+   * folded, this method will fold it and than load the function pointer again.
+   *
+   * \return the reloaded function pointer. nullptr on failure.
+   */
+  void *reload();
 
   /** \brief Generate the LLVM-IR code of the function.
    *
@@ -146,6 +167,9 @@ class Version
   /** \brief unique identifier. */
   std::string id;
 
+  /** \brief User-defined description. */
+  std::string tag;
+
   /** \brief Remove files when the object is deallocated. */
   bool autoremoveFilesEnable;
 
@@ -179,9 +203,16 @@ class Version
   std::string fileName_bin;
 
   /** \brief Loaded symbol, if available. */
-  void *handle;
+  void *symbol;
+
+  void *lib_handle;
 
   bool removeFile(const std::string &fileName);
+
+  /** \brief Loads function pointer symbol from the shared object.
+   * Shared object must already exists.
+   */
+  void loadSymbol();
 };
 
 /** \brief Version::Builder is used to configure a new version object.
@@ -195,10 +226,24 @@ class Version::Builder
   /** \brief constructs a Builder by cloning an existing Version. */
   Builder(const Version *v);
 
+  /** \brief constructs a Builder by cloning an existing Version. */
   Builder(const std::shared_ptr<Version> v);
+
+  /** \brief constructs a Builder and populate the mandatory parameters. */
+  Builder(const std::string &fileName,
+          const std::string &functionName,
+          const std::shared_ptr<Compiler> &compiler);
 
   /** \brief default constructor. */
   Builder();
+
+  /** \brief construct a Version using an already existing shared object. */
+  static std::shared_ptr<Version> createFromSO(
+                                    const std::string &sharedObject,
+                                    const std::string &functionName,
+                                    const std::shared_ptr<Compiler> &compiler,
+                                    const bool autoremoveFilesEnable = true,
+                                    const std::string &tag = "");
 
   /** \brief actually create an immutable object Version. */
   std::shared_ptr<Version> build();
@@ -207,15 +252,15 @@ class Version::Builder
   void reset();
 
   /** \brief Remove from the option list all options with a given tag. */
-  void removeOption(const std::string &o_id);
+  void removeOption(const std::string &tag);
 
   /** \brief Remove from optimizer Option list all options with a given tag.
    */
-  void removeOptOption(const std::string &o_id);
+  void removeOptOption(const std::string &tag);
 
   /** \brief Remove from gen_IR Option list all options with a given tag.
    */
-  void removeGenIROption(const std::string &o_id);
+  void removeGenIROption(const std::string &tag);
 
   /** \brief Reset compilation Option list to a new list. */
   void options(const std::list<Option> options);
@@ -231,6 +276,9 @@ class Version::Builder
    * By default it is the name of the function, uppercase.
    */
   void addFunctionFlag(const std::string &flag = "");
+
+  /** \brief User defined tag to describe the version. */
+  std::string _tag;
 
   /** \brief Remove compiled files from disk when Version object is freed. */
   bool _autoremoveFilesEnable;
