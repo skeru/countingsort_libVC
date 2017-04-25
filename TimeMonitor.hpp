@@ -20,12 +20,15 @@ public:
 
   double getAvg();
 
+  double getMax();
+
 private:
   uint64_t _counter;
   time_acquisition_t _start;
   time_acquisition_t _stop;
   time_accumulation_t _last_run_time;
   double _sum;
+  double _max;
 
 };
 

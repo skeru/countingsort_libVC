@@ -3,6 +3,7 @@
 TimeMonitor::TimeMonitor() {
   _counter = 0;
   _sum = 0;
+  _max = 0;
 }
 
 void TimeMonitor::start() {
@@ -15,6 +16,9 @@ double TimeMonitor::stop() {
   _counter ++;
   _last_run_time = _stop - _start;
   _sum += _last_run_time.count();
+  if (_last_run_time.count() > _max) {
+    _max = _last_run_time.count();
+  }
   return _last_run_time.count();
 }
 
@@ -25,4 +29,9 @@ double TimeMonitor::getLast() {
 double TimeMonitor::getAvg() {
   if (! _counter) return 0;
   return _sum / _counter;
+}
+
+double TimeMonitor::getMax() {
+  if (! _counter) return 0;
+  return _max;
 }
