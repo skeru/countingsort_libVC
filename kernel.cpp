@@ -38,9 +38,9 @@ void sort(std::vector<int32_t> &array, const int32_t min, const int32_t max) {
 }
 
 extern "C"
-void vc_sort(std::vector<int32_t> &array) {
-  const int32_t max = _MAX_VALUE_RANGE;
-  const int32_t min = _MIN_VALUE_RANGE;
+void vc_sort(std::vector<int32_t> &array, int32_t min, int32_t max) {
+  // const int32_t max = _MAX_VALUE_RANGE;
+  // const int32_t min = _MIN_VALUE_RANGE;
 
   std::fill(counter.begin(), counter.end(), 0);
   for( size_t i = 0; i < array.size(); i++ ) {
@@ -48,9 +48,10 @@ void vc_sort(std::vector<int32_t> &array) {
   }
 
   auto it = array.begin();
-  for( int32_t i = min; i < max; i++ ) {
-    const size_t increment = counter[i - min];
-    std::fill_n(it, increment, i);
+  for( size_t i = 0; i < range_size; i++ ) {
+    const int32_t index = i + min;
+    const size_t increment = counter[i];
+    std::fill_n(it, increment, index);
     std::advance(it, increment);
   }
 

@@ -12,7 +12,7 @@
 #define PATH_TO_KERNEL _PATH_TO_KERNEL
 #endif
 
-typedef void (*kernel_t)(std::vector<int32_t> &array);
+typedef void (*kernel_t)(std::vector<int32_t> &array, const int32_t, const int32_t);
 
 uint32_t seed = 666;
 const size_t MAX_ITERATIONS = 100;
