@@ -21,7 +21,7 @@ uint32_t seed = 666;
 const size_t MAX_ITERATIONS = 100;
 const float similarity_ratio_recompilation_threshold = 2.0f;
 
-void run_test(size_t data_size, size_t iterations);
+void run_test(size_t data_size, size_t iterations, std::pair<int, int> range);
 
 int main(int argc, char const *argv[]) {
 
@@ -29,6 +29,17 @@ int main(int argc, char const *argv[]) {
   CPU_ZERO(&mask);
   CPU_SET(0, &mask);
   sched_setaffinity(0, sizeof(mask), &mask);
+
+  const std::vector<std::pair<int, int> > data_range = {
+    std::make_pair<int,int>(0,256),
+    std::make_pair<int,int>(0,512),
+    std::make_pair<int,int>(0,1024),
+    std::make_pair<int,int>(0,2048),
+    std::make_pair<int,int>(0,4096),
+    std::make_pair<int,int>(0,8192),
+    std::make_pair<int,int>(0,16384),
+    std::make_pair<int,int>(0,32768),
+  };
 
   const std::vector<size_t> data_size = {
                                         10*1000*1000,
@@ -41,7 +52,9 @@ int main(int argc, char const *argv[]) {
   vc::vc_utils_init();
 
   for (const size_t s : data_size) {
-    run_test(s, MAX_ITERATIONS);
+    for (const auto r : data_range) {
+      run_test(s, MAX_ITERATIONS, r);
+    }
   }
 
   return 0;
@@ -84,7 +97,7 @@ std::shared_ptr<vc::Version> getDynamicVersion(int32_t min, int32_t max) {
   return v;
 }
 
-void run_test(size_t data_size, size_t iterations) {
+void run_test(size_t data_size, size_t iterations, std::pair<int, int> range) {
 
   TimeMonitor time_monitor_ref;
   TimeMonitor time_monitor_dyn;
@@ -92,7 +105,10 @@ void run_test(size_t data_size, size_t iterations) {
 
   // running reference version - statically linked to main program
   for (size_t i = 0; i < iterations; i++) {
-    auto wl = WorkloadProducer<int32_t>::get_WL_with_size(data_size, seed);
+    auto wl = WorkloadProducer<int32_t>::get_WL_with_bounds_size(range.first,
+                                                                 range.second,
+                                                                 data_size,
+                                                                 seed);
     const auto meta = wl.getMetadata();
     time_monitor_ref.start();
     sort(wl.data, meta.minVal, meta.maxVal);
@@ -101,7 +117,10 @@ void run_test(size_t data_size, size_t iterations) {
 
   // running dynamic version - dynamically compiled
   for (size_t i = 0; i < iterations; i++) {
-    auto wl = WorkloadProducer<int32_t>::get_WL_with_size(data_size, seed);
+    auto wl = WorkloadProducer<int32_t>::get_WL_with_bounds_size(range.first,
+                                                                 range.second,
+                                                                 data_size,
+                                                                 seed);
     const auto meta = wl.getMetadata();
     time_monitor_ovh.start();
     auto v = getDynamicVersion(meta.minVal, meta.maxVal);
@@ -117,9 +136,9 @@ void run_test(size_t data_size, size_t iterations) {
     time_monitor_dyn.stop();
   }
 
-  std::cout << data_size << "\t Avg Time taken ref " << time_monitor_ref.getAvg() << " ms" << std::endl;
-  std::cout << data_size << "\t Avg Time taken dyn " << time_monitor_dyn.getAvg() << " ms" << std::endl;
-  std::cout << data_size << "\t Max Time taken ovh " << time_monitor_ovh.getMax() << " ms" << std::endl;
-  std::cout << data_size << "\t Avg Time taken ovh " << time_monitor_ovh.getAvg() << " ms" << std::endl;
+  std::cout << range.second << "\t" << data_size << "\t Avg Time taken ref " << time_monitor_ref.getAvg() << " ms" << std::endl;
+  std::cout << range.second << "\t" << data_size << "\t Avg Time taken dyn " << time_monitor_dyn.getAvg() << " ms" << std::endl;
+  std::cout << range.second << "\t" << data_size << "\t Max Time taken ovh " << time_monitor_ovh.getMax() << " ms" << std::endl;
+  std::cout << range.second << "\t" << data_size << "\t Avg Time taken ovh " << time_monitor_ovh.getAvg() << " ms" << std::endl;
   return;
 }
