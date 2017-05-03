@@ -14,8 +14,8 @@
 #define PATH_TO_KERNEL _PATH_TO_KERNEL
 #endif
 
-typedef void (*kernel_t)(std::vector<int32_t> &array, const int32_t, const int32_t);
-std::map<size_t, std::shared_ptr<vc::Version> > memo;
+typedef void (*kernel_t)(std::vector<int32_t> &array);
+std::map<std::pair<int32_t, int32_t>, std::shared_ptr<vc::Version> > memo;
 
 uint32_t seed = 666;
 const size_t MAX_ITERATIONS = 100;
@@ -82,17 +82,16 @@ std::shared_ptr<vc::Version> dynamicCompile(int32_t min, int32_t max) {
 }
 
 // lookup in previously compiled versions
-std::shared_ptr<vc::Version> getDynamicVersion(int32_t min, int32_t max) {
-  const size_t range = max - min;
-  auto elem = memo.upper_bound(range);
-  size_t threshold = range * similarity_ratio_recompilation_threshold;
-  if (elem != memo.end() && elem->first < threshold) {
+std::shared_ptr<vc::Version> getDynamicVersion(const int32_t min, const int32_t max) {
+  std::pair<int32_t, int32_t> key = std::make_pair(min, max);
+  auto elem = memo.find(key);
+  if (elem != memo.end()) {
     elem->second->compile();
     return elem->second;
   }
   auto v = dynamicCompile(min, max);
   if (v != nullptr) {
-    memo[range] = v;
+    memo[key] = v;
   }
   return v;
 }
@@ -115,6 +114,10 @@ void run_test(size_t data_size, size_t iterations, std::pair<int, int> range) {
     time_monitor_ref.stop();
   }
 
+  time_monitor_ovh.start();
+  auto v = getDynamicVersion(range.first, range.second);
+  kernel_t my_sort = (kernel_t) v->getSymbol();
+  time_monitor_ovh.stop();
   // running dynamic version - dynamically compiled
   for (size_t i = 0; i < iterations; i++) {
     auto wl = WorkloadProducer<int32_t>::get_WL_with_bounds_size(range.first,
@@ -122,23 +125,18 @@ void run_test(size_t data_size, size_t iterations, std::pair<int, int> range) {
                                                                  data_size,
                                                                  seed);
     const auto meta = wl.getMetadata();
-    time_monitor_ovh.start();
-    auto v = getDynamicVersion(meta.minVal, meta.maxVal);
-    kernel_t my_sort = (kernel_t) v->getSymbol();
-    time_monitor_ovh.stop();
     if (! my_sort) {
       std::cerr << "Error while processing item " << i << std::endl;
       return;
     }
     time_monitor_dyn.start();
-    my_sort(wl.data, meta.minVal, meta.maxVal);
-    v->fold();
+    my_sort(wl.data/*, meta.minVal, meta.maxVal*/);
     time_monitor_dyn.stop();
   }
+  v->fold();
 
   std::cout << range.second << "\t" << data_size << "\t Avg Time taken ref " << time_monitor_ref.getAvg() << " ms" << std::endl;
   std::cout << range.second << "\t" << data_size << "\t Avg Time taken dyn " << time_monitor_dyn.getAvg() << " ms" << std::endl;
-  std::cout << range.second << "\t" << data_size << "\t Max Time taken ovh " << time_monitor_ovh.getMax() << " ms" << std::endl;
   std::cout << range.second << "\t" << data_size << "\t Avg Time taken ovh " << time_monitor_ovh.getAvg() << " ms" << std::endl;
   return;
 }
