@@ -46,6 +46,21 @@ Please note that if you choose to install libVersioningCompiler in a custom
 folder, you will need the FindLibVersioningCompiler.cmake module.
 You will find a pre-cooked cmake module in `${LIBVC_ROOT}/config`.
 
+The above-mentioned cmake module will export also cmake variables which are
+useful to build an application that uses libVersioningCompiler, including
+```
+$LIBVC_INCLUDES   = Include path for the header files of libVersioningCompiler
+$LIBVC_LIBRARIES  = Link these libraries to use libVersioningCompiler
+$LIVC_LIB_DIR     = Extra libraries directories
+$HAVE_CLANG_LIB_COMPILER = Set to true if libVersioningCompiler can have
+                               Clang as a library enabled
+```
+If you choose to do not use this cmake module, every time you want to use
+libVersioningCompiler in another application you have to manually specify:
+ - include path for the headers
+ - `libVersioningCompiler` library file
+ - `libVersioningCompiler`'s dependencies (see detailed list above)
+
 ## Essential classes
 
  - Version :
@@ -93,6 +108,13 @@ Disregarding the APIs that are going to be exploited, these modifications
 should be applied.
 
 #### For each function to be compiled/versioned
+You have to provide a few additional pieces of information to the library,
+such as
+ - name of the function to be compiled
+ - name of the source file to be compiled
+ - signature of the function to be compiled
+ - ensure the function to be compiled will have C linkage
+
 In the host code.
  ```
  #define FILENAME_SRC "Kernel.cpp"
@@ -115,7 +137,7 @@ The enforcing is applied through the `extern "C"` prefix.
 In order to apply this variation only when this source code is compiled with
 libVersioningCompiler, it can be wrapped with a define.
 This technique can also be applied to isolate the source code that must be
-compiled into a version from the code around it.
+compiled into a Version from the code around it.
 By default low-level APIs do not add any extra symbol definition during the
 compilation; any extra definition must be manually specified.
 High-level APIs include by default a definition of the uppercase name of the
@@ -124,6 +146,9 @@ enabled or disabled by using
 `#ifdef uppercaseFunctionName` | `#ifndef uppercaseFunctionName`.
 
 ### Low-level APIs
+Before proceeding any further, be sure you have understood the Common part,
+which must be addressed in both cases of high-level and low-level APIs.
+
 #### Include
 `#include "versioningCompiler/Version.hpp"`
 
@@ -136,21 +161,21 @@ should be added. E.g.
 Instantiate and configure all compilers that are going to be used.
 ```
 // default system compiler
-std::shared_ptr<vc::Compiler> cc = std::make_shared<vc::SystemCompiler>();
+vc::compiler_ptr_t cc = vc::make_compiler<vc::SystemCompiler>();
 
 // /usr/bin/gcc using ./test.log as log file
-std::shared_ptr<vc::Compiler> gcc = std::make_shared<vc::SystemCompiler>(
+vc::compiler_ptr_t gcc = vc::make_compiler<vc::SystemCompiler>(
                                         "gcc",
                                         "gcc",
                                         ".",
                                         "./test.log",
                                         "/usr/bin",
                                         false
-                                    );
+                                        );
 
 // custom installation of LLVM/clang
 // /clang-3.7.0/bin/clang as compiler and /clang-3.7.0/bin/opt as optimizer
-std::shared_ptr<vc::Compiler> clang = std::make_shared<vc::SystemCompilerOptimizer>(
+vc::compiler_ptr_t clang = vc::make_compiler<vc::SystemCompilerOptimizer>(
                                             "llvm/clang",
                                             "clang",
                                             "opt",
@@ -180,7 +205,7 @@ builder._optOptionList = {                  // set optimizer option list
                           vc::Option("unroll", "-loop-unroll"),
                           vc::Option("mem2reg", "-mem2reg")
                          };
-std::shared_ptr<vc::Version> v = builder.build(); // MANDATORY finalize Version
+vc::version_ptr_t v = builder.build(); // MANDATORY finalize Version
 ```
 After a Version finalization, the builder can be modified and reused to build
 another Version or it can be destroyed.
@@ -190,7 +215,7 @@ It is also possible to clone a Version in a new Builder to initialize it.
 ```
 // reuse builder from v
 builder._compiler = cc;
-std::shared_ptr<vc::Version> v2 = builder.build();
+vc::version_ptr_t v2 = builder.build();
 
 // initialize another_builder using v2 configuration
 vc::Version::Builder another_builder = vc::Version::Builder(v2);
@@ -225,6 +250,9 @@ if (clang->hasIRSupport())  // check if the compiler has IR support
 ```
 
 ### High-level APIs
+Before proceeding any further, be sure you have understood the Common part,
+which must be addressed in both cases of high-level and low-level APIs.
+
 High-level APIs are simple functions that wraps the low-level APIs.
 They rely on builder and compiler static objects.
 They apply the most common values to the low-level parameters.
@@ -234,14 +262,14 @@ Please consider to switch to Low-level APIs for a more fine-grained approach.
 `#include "versioningCompiler/Utils.hpp"`
 
 #### Once on setup
-` vc_utils_init();`
+` vc::vc_utils_init();`
 
 #### For every desired Version object
 ```
- std::shared_ptr<Version> v = vc::createVersion(FILENAME_SRC,
-                                                FUNCTION_NAME,
-                                                {Option("O", "-O", "2"), ... }
-                                               );
+ vc::version_ptr_t v = vc::createVersion(FILENAME_SRC,
+                                         FUNCTION_NAME,
+                                         {vc::Option("O", "-O", "2"), ... }
+                                        );
  signature_t fn_ptr = (signature_t) vc::compileAndGetSymbol(v);
  if (fn_ptr) {  // check if correctly compiled and loaded symbol
    fn_ptr(42);  // run the compiled function version
