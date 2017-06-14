@@ -15,7 +15,7 @@
 #endif
 
 typedef void (*kernel_t)(std::vector<int32_t> &array);
-std::map<std::pair<int32_t, int32_t>, std::shared_ptr<vc::Version> > memo;
+std::map<std::pair<int32_t, int32_t>, vc::version_ptr_t> memo;
 
 uint32_t seed = 666;
 const size_t MAX_ITERATIONS = 100;
@@ -45,8 +45,6 @@ int main(int argc, char const *argv[]) {
                                         10*1000*1000,
                                        100*1000*1000,
                                       1000*1000*1000,
-                                   10*1000*1000*1000,
-                                  100*1000*1000*1000,
                                         };
 
   vc::vc_utils_init();
@@ -61,18 +59,18 @@ int main(int argc, char const *argv[]) {
 }
 
 // dynamically create a new version
-std::shared_ptr<vc::Version> dynamicCompile(int32_t min, int32_t max) {
+vc::version_ptr_t dynamicCompile(int32_t min, int32_t max) {
   const std::string kernel_dir = PATH_TO_KERNEL;
   const std::string kernel_file = kernel_dir + "kernel.cpp";
   const std::string functionName = "vc_sort";
-  const std::list<vc::Option> opt_list = {
-    vc::Option("opt lv", "-O", "3"),
-    vc::Option("std", "-std=", "c++11"),
-    vc::Option("include dir", "-I", kernel_dir),
-    vc::Option("min range", "-D_MIN_VALUE_RANGE=", std::to_string(min)),
-    vc::Option("max range", "-D_MAX_VALUE_RANGE=", std::to_string(max)),
+  const vc::opt_list_t opt_list = {
+    vc::make_option("-O3"),
+    vc::make_option("-std=c++11"),
+    vc::make_option("-I" + kernel_dir),
+    vc::make_option("-D_MIN_VALUE_RANGE=" + std::to_string(min)),
+    vc::make_option("-D_MAX_VALUE_RANGE=" + std::to_string(max)),
   };
-  std::shared_ptr<vc::Version> version = vc::createVersion(kernel_file, functionName, opt_list);
+  vc::version_ptr_t version = vc::createVersion(kernel_file, functionName, opt_list);
   // compiling...
   kernel_t f = (kernel_t) vc::compileAndGetSymbol(version);
   if (f) {
@@ -82,7 +80,7 @@ std::shared_ptr<vc::Version> dynamicCompile(int32_t min, int32_t max) {
 }
 
 // lookup in previously compiled versions
-std::shared_ptr<vc::Version> getDynamicVersion(const int32_t min, const int32_t max) {
+vc::version_ptr_t getDynamicVersion(const int32_t min, const int32_t max) {
   std::pair<int32_t, int32_t> key = std::make_pair(min, max);
   auto elem = memo.find(key);
   if (elem != memo.end()) {
@@ -118,21 +116,24 @@ void run_test(size_t data_size, size_t iterations, std::pair<int, int> range) {
   auto v = getDynamicVersion(range.first, range.second);
   kernel_t my_sort = (kernel_t) v->getSymbol();
   time_monitor_ovh.stop();
+
+  if (! my_sort) {
+    std::cerr << "Error while processing item "
+              << range.first << " - " << range.second << std::endl;
+    return;
+  }
+
   // running dynamic version - dynamically compiled
   for (size_t i = 0; i < iterations; i++) {
     auto wl = WorkloadProducer<int32_t>::get_WL_with_bounds_size(range.first,
                                                                  range.second,
                                                                  data_size,
                                                                  seed);
-    const auto meta = wl.getMetadata();
-    if (! my_sort) {
-      std::cerr << "Error while processing item " << i << std::endl;
-      return;
-    }
     time_monitor_dyn.start();
-    my_sort(wl.data/*, meta.minVal, meta.maxVal*/);
+    my_sort(wl.data);
     time_monitor_dyn.stop();
   }
+
   v->fold();
 
   std::cout << range.second << "\t" << data_size << "\t Avg Time taken ref " << time_monitor_ref.getAvg() << " ms" << std::endl;
