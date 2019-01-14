@@ -105,7 +105,7 @@ void run_test(size_t data_size, size_t iterations, std::pair<int, int> range) {
     auto wl = WorkloadProducer<int32_t>::get_WL_with_bounds_size(range.first,
                                                                  range.second,
                                                                  data_size,
-                                                                 seed);
+                                                                 seed + i);
     const auto meta = wl.getMetadata();
     time_monitor_ref.start();
     sort(wl.data, meta.minVal, meta.maxVal);
@@ -114,7 +114,7 @@ void run_test(size_t data_size, size_t iterations, std::pair<int, int> range) {
 
   time_monitor_ovh.start();
   auto v = getDynamicVersion(range.first, range.second);
-  kernel_t my_sort = (kernel_t) v->getSymbol();
+  kernel_t my_sort = (kernel_t) v->getSymbol(0);
   time_monitor_ovh.stop();
 
   if (! my_sort) {
@@ -128,7 +128,7 @@ void run_test(size_t data_size, size_t iterations, std::pair<int, int> range) {
     auto wl = WorkloadProducer<int32_t>::get_WL_with_bounds_size(range.first,
                                                                  range.second,
                                                                  data_size,
-                                                                 seed);
+                                                                 seed + i);
     time_monitor_dyn.start();
     my_sort(wl.data);
     time_monitor_dyn.stop();
@@ -136,8 +136,9 @@ void run_test(size_t data_size, size_t iterations, std::pair<int, int> range) {
 
   v->fold();
 
-  std::cout << range.second << "\t" << data_size << "\t Avg Time taken ref " << time_monitor_ref.getAvg() << " ms" << std::endl;
-  std::cout << range.second << "\t" << data_size << "\t Avg Time taken dyn " << time_monitor_dyn.getAvg() << " ms" << std::endl;
-  std::cout << range.second << "\t" << data_size << "\t Avg Time taken ovh " << time_monitor_ovh.getAvg() << " ms" << std::endl;
+  std::cout << "range width" << "\t" << "workload size" << "\t" << "timing" << std::endl;
+  std::cout << range.second << "\t" << data_size << "\t Avg ref " << time_monitor_ref.getAvg() << " ms" << std::endl;
+  std::cout << range.second << "\t" << data_size << "\t Avg dyn " << time_monitor_dyn.getAvg() << " ms" << std::endl;
+  std::cout << range.second << "\t" << data_size << "\t Avg ovh " << time_monitor_ovh.getAvg() << " ms" << std::endl << std::endl << std::endl;
   return;
 }
